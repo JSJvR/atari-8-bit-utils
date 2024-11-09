@@ -162,7 +162,7 @@ def clear_dir(path):
                 os.remove(entry.path)
     dir.close()
 
-def _test():
+def dump_mappings():
     print('*****************************')
     print('* ATASCII to UTF-8 mappings *')
     print('*****************************')
@@ -176,4 +176,4 @@ def _test():
         print(k, ': ', hex(v))
 
 if __name__ == '__main__':
-    _test()
+    dump_mappings()
