@@ -122,7 +122,7 @@ def get_current_state():
 def extract_atr():
     clear_dir('./atascii')
     atr_file = get_current_state()['atr'][0]['name']
-    subprocess.run(f'lsatr -X ./atascii ./atr/{atr}')
+    subprocess.run(f'lsatr -X ./atascii ./atr/{atr_file}')
 
 def commit():
     subprocess.run('git add ./utf8') 
