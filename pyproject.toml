@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atari-8-bit-utils"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "GPLv2"
+keywords = []
+authors = [
+  { name = "JSJvR" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = []
+
+[project.urls]
+Documentation = "https://github.com/JSJvR/atari-8-bit-utils#readme"
+Issues = "https://github.com/JSJvR/atari-8-bit-utils/issues"
+Source = "https://github.com/JSJvR/atari-8-bit-utils"
+
+[tool.hatch.version]
+path = "src/atari_8_bit_utils/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/atari_8_bit_utils tests}"
+
+[tool.coverage.run]
+source_pkgs = ["atari_8_bit_utils", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/atari_8_bit_utils/__about__.py",
+]
+
+[tool.coverage.paths]
+atari_8_bit_utils = ["src/atari_8_bit_utils", "*/atari-8-bit-utils/src/atari_8_bit_utils"]
+tests = ["tests", "*/atari-8-bit-utils/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]

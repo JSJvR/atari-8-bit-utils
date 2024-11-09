@@ -2,7 +2,7 @@
 import filecmp
 import os
 import unittest
-from ..scripts.shared import to_utf8, to_atascii, files_to_utf8, files_to_atascii, clear_dir
+from atari_8_bit_utils.atascii import to_utf8, to_atascii, files_to_utf8, files_to_atascii, clear_dir
 
 # Tests for ATASCII <-> UTF-8 conversion code
 class TestAtasciiConversions(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestAtasciiConversions(unittest.TestCase):
         self.assertTrue(filecmp.cmp(in_utf8, out_utf8, shallow=False))
 
     def __init__(self, methodName = "runTest"):
-        data_path = 'src/tests/data/'
+        data_path = 'testdata/'
         self.out_path = data_path + 'out/'
         self.atascii_path = data_path + 'atascii/'
         self.utf8_path = data_path + 'utf8/'

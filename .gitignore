@@ -1,6 +1,6 @@
 # Project specigic ignores
 
-src/tests/data/out
+testdata/out
 .vscode
 
 # Byte-compiled / optimized / DLL files

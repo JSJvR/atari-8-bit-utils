@@ -8,8 +8,8 @@ import textwrap
 from enum import Enum
 import sys
 import time
-from .shared import clear_dir
-from .shared import files_to_utf8
+from .atascii import clear_dir
+from .atascii import files_to_utf8
 
 state_file = './state.json'
 
