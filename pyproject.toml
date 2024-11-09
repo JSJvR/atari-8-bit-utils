@@ -8,8 +8,7 @@ dynamic = ["version"]
 description = 'A collection of Python utilities for projects related to Atari 8-bit computers'
 readme = "README.md"
 requires-python = ">=3.8"
-license = "GPLv2"
-keywords = []
+keywords = ["Atari", "ATASCII"]
 authors = [
   { name = "Johan van Rensburg" },
 ]
@@ -23,6 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
+  "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
 ]
 dependencies = []
 
