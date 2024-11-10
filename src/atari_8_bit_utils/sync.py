@@ -183,9 +183,14 @@ def update_state(key):
     save_state(stored_state)
 
 # Runs a single iteration of the reconciliation logic
-def recon_tick():
+def recon_tick(once: bool):
     global iterations
+    global exit_now
     action = decide_action()
+
+    if once and action == Action.WAIT:
+        exit_now = True
+        return action
 
     total_iterations = '?'
     if current_config:
@@ -195,6 +200,7 @@ def recon_tick():
             total_iterations = current_config['iterations']
 
     print(f'({iterations}/{total_iterations}) - Performing {action}... ')
+
     if not action.recon_action is None:
         action.recon_action()
     
@@ -206,14 +212,14 @@ def recon_tick():
     iterations += 1
     return action
 
-def recon_loop():
+def recon_loop(once: bool):
+    global exit_now
     while True:
         try:
-            recon_tick()
+            recon_tick(once)
         except KeyboardInterrupt:
             global iterations
             iterations += 1
-            global exit_now
             exit_now = True
 
 def init(clobber = False):
@@ -224,6 +230,9 @@ def init(clobber = False):
     else:
         print(f'Skipping initialization. State file "{state_file}" already exists')        
 
+def sync_main(once: bool = False, reset: bool = False):
+    init(reset)
+    recon_loop(once)
+
 if __name__ == '__main__':
-    init(False)
-    recon_loop()
+    sync_main()

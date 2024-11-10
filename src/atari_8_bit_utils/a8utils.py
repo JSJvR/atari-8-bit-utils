@@ -2,6 +2,7 @@ import os
 import typer
 import logging
 from .atascii import to_utf8, to_atascii, files_to_utf8, files_to_atascii
+from .sync import sync_main
 from typing import Callable
 from typing_extensions import Annotated
 from pathlib import Path
@@ -60,20 +61,27 @@ def convert(input: str, output: str, file_converter: Callable, dir_converter):
         else:
             dir_converter(input, output)
 
-@app.command(help="Converts a single file or all files in a directory from ATASCII to UTF-9")
+@app.command(help="Converts a single file or all files in a directory from ATASCII to UTF-8")
 def ata2utf(
     input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
 ):
     convert(input, output, to_utf8, files_to_utf8)
 
-@app.command(help="Converts a single file or all files in a directory from UTF-9 to ATASCII")
+@app.command(help="Converts a single file or all files in a directory from UTF-8 to ATASCII")
 def utf2ata(
     input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
 ):
     convert(input, output, to_atascii, files_to_atascii)
 
+@app.command(help='Keep an ATR image and git repo in sync')
+def sync_atr(
+    once: Annotated[bool, typer.Option(help='Synchronize only once and exit when there is nothing to do.')] = False,
+    force_init: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False
+):
+    sync_main(once, force_init)
+
 if __name__ == "__main__":
     logging.basicConfig(stream=logging.StreamHandler(sys.stdout).stream, level=logging.INFO)
-    app()    
+    app()
