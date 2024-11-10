@@ -61,14 +61,14 @@ def convert(input: str, output: str, file_converter: Callable, dir_converter):
             dir_converter(input, output)
 
 @app.command(help="Converts a single file or all files in a directory from ATASCII to UTF-9")
-def ata2utf8(
+def ata2utf(
     input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
 ):
     convert(input, output, to_utf8, files_to_utf8)
 
 @app.command(help="Converts a single file or all files in a directory from UTF-9 to ATASCII")
-def utf82ata(
+def utf2ata(
     input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
 ):
