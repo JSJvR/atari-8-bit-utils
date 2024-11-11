@@ -17,7 +17,7 @@ state_file = './state.json'
 iterations = 0
 current_config = None
 default_cofig = {
-        'delay': 20,
+        'delay': 5,
         'daemon': False,
         'iterations': 100
     }
@@ -94,10 +94,10 @@ def scandir(path, output, pattern = '.*'):
 
 def get_current_state():
     state = {
+        'config': current_config,
         'atr': list(),
         'atascii': list(),
-        'utf8': list(),
-        'config': current_config
+        'utf8': list()
     }
     
     # ATR
