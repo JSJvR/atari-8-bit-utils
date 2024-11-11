@@ -24,7 +24,12 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
   "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
 ]
-dependencies = []
+dependencies = [
+  "typer"
+]
+
+[project.scripts]
+a8utils = "atari_8_bit_utils.a8utils:app"
 
 [project.urls]
 Documentation = "https://github.com/JSJvR/atari-8-bit-utils#readme"
