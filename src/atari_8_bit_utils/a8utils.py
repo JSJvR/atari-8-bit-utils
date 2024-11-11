@@ -77,11 +77,11 @@ def utf2ata(
 
 @app.command(help='Keeps an ATR image and git repo in sync')
 def atr2git(
-    once: Annotated[bool, typer.Option(help='Synchronize only once and exit when there is nothing to do.')] = False,
-    force_init: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False,
-    daemon: Annotated[bool, typer.Option(help='Run forever in a loop. Overrides config.daemon in state.json')] = False
+    reset_config: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False,
+    once: Annotated[bool, typer.Option(help='Synchronize only once and exit when there is nothing to do.')] = None,
+    daemon: Annotated[bool, typer.Option(help='Run forever in a loop. Overrides config.daemon in state.json')] = None
 ):
-    sync_main(once, force_init, daemon)
+    sync_main(reset_config, once, daemon)
 
 if __name__ == "__main__":
     logging.basicConfig(stream=logging.StreamHandler(sys.stdout).stream, level=logging.INFO)

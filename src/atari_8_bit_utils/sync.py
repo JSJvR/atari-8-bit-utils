@@ -16,20 +16,58 @@ state_file = './state.json'
 # Global variables
 iterations = 0
 current_config = None
-default_cofig = {
-        'delay': 5,
-        'daemon': False,
-        'iterations': 100
+
+# Config object holding any setting that were overridden for the current run
+# These config values will be used in the program logic, but will not be persisted
+# to state.json
+override_config = {} 
+
+
+default_config = {
+        'delay': 5,             # Time delay in seconds between iterations of the recon loop
+
+        # The next three config values are all related to how many times we should
+        # run the recon loop before exiting. They are listed in order of precedence, i.e.
+        # 'run_once' overrides the behavior of 'daemon' which override the behavior of
+        # 'iterations'
+        'run_once': False,      # If True, exit when we encounter Action.WAIT for the first time
+        'daemon': False,        # In daemon mode we run forever
+        'iterations': 100,      # The number of iterations of the recon loop to run before exiting
+        
+        'auto_commit': False    # Flag indicating whether we should commit every time a files changes
     }
 
 exit_now = False
-daemon_override = False
 
 def get_default_config():
     global current_config
     print('\tNo config found in state.json. Using defaults')
-    current_config = default_cofig
+    current_config = default_config
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t'))
+    print('\tWith overrides:')
+    print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
+
+def get_config(key: str):
+    """
+    Get's the effective config value for the given key. This function
+    should only be used in the main business logic and not in any code
+    related to loading, saving or defaulting config values in
+    in state.json
+    """ 
+    config_val = None
+
+    override = override_config.get(key)
+    # print(f'\t\tOverride value: {override}')
+
+    if not current_config:
+        config_val = None
+    elif not override_config.get(key) is None:
+        config_val = override
+    else:
+        config_val = current_config.get(key)
+
+    # print(f'\t\tget_config({key}) --> {config_val}')
+    return config_val
 
 def load_state():
     f = open(state_file, mode='r')
@@ -41,12 +79,14 @@ def apply_config():
     global current_config
 
     # Merge defaults with values loaded from file
-    current_config = default_cofig | load_state()['config']
+    current_config = default_config | load_state()['config']
     print('\tUsing config:')
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t  '))
+    print('\tWith overrides:')
+    print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
 
 def wait():
-    delay = current_config['delay']
+    delay = get_config('delay')
     print(f'\tSleeping for {delay} seconds')
     time.sleep(delay)
 
@@ -61,7 +101,7 @@ class Action(Enum):
     PUSH = 'commit' , lambda: subprocess.run('git push')
     WAIT = None, lambda: wait()
     EXIT = None, lambda: sys.exit("\tExiting sync process")
-    ERROR = None, lambda: sys.exit("\tError encounted. Exiting sync process")
+    ERROR = None, lambda: sys.exit("\tError encountered. Exiting sync process")
     
     def __new__(cls, *args, **kwds):
           value = len(cls.__members__) + 1
@@ -150,7 +190,7 @@ def decide_action():
     if stored_state['config'] and (not current_config or current_config != stored_state['config']):
         return Action.APPLY_CONFIG
 
-    if not (current_config['daemon'] or daemon_override) and iterations >= current_config['iterations']:
+    if not get_config('daemon') and iterations >= get_config('iterations'):
         return Action.EXIT
 
     if not current_state['atr']:
@@ -185,18 +225,19 @@ def update_state(key):
     save_state(stored_state)
 
 # Runs a single iteration of the reconciliation logic
-def recon_tick(once: bool):
+def recon_tick():
     global iterations
     global exit_now
     action = decide_action()
 
-    if once and action == Action.WAIT:
+    if get_config('run_once') and action == Action.WAIT:
+        print('Exiting immediately')
         exit_now = True
         return action
 
     total_iterations = '?'
     if current_config:
-        if daemon_override or current_config['daemon']:
+        if get_config('daemon'):
             total_iterations = '∞'
         elif current_config['iterations']:
             total_iterations = current_config['iterations']
@@ -214,11 +255,11 @@ def recon_tick(once: bool):
     iterations += 1
     return action
 
-def recon_loop(once: bool):
+def recon_loop():
     global exit_now
     while True:
         try:
-            recon_tick(once)
+            recon_tick()
         except KeyboardInterrupt:
             global iterations
             iterations += 1
@@ -232,11 +273,20 @@ def init(clobber = False):
     else:
         print(f'Skipping initialization. State file "{state_file}" already exists')        
 
-def sync_main(once: bool = False, reset: bool = False, daemon: bool = False):
-    global daemon_override
-    daemon_override = daemon
+def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
+
     init(reset)
-    recon_loop(once)
+
+    # Apply overrides
+    # In order to support overriding flag in both directions, we need to 
+    # default to None and only apply the override if the flag is present
+    if not once is None:
+        override_config['run_once'] = once
+
+    if not daemon is None:
+        override_config['daemon'] = daemon
+
+    recon_loop()
 
 if __name__ == '__main__':
     sync_main()
