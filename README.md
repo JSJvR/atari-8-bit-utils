@@ -1,5 +1,6 @@
 # Atari 8-bit Python Utilities
 ![Auto Tag badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/auto_tag.yml/badge.svg) ![Python Package badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-package.yml/badge.svg) ![Python Publish badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-publish.yml/badge.svg) 
+
 ## Prerequisites
 
 - Python 3.8 or later
@@ -38,3 +39,13 @@ The output should look something like this
 ```
 
 ## Commands
+
+TODO
+
+## Demo
+
+The best way to make full use of this project is to start with the [Atari 8-bit Git template](https://github.com/JSJvR/atari-8-bit-git-template)
+
+https://github.com/user-attachments/assets/e0558c34-0741-4e70-920e-98a72fade00e
+
+The video shows [this commit](https://github.com/JSJvR/atari-8-bit-git-template/commit/14f69b4393901dea558b4a9ecce9b8b7189de932) being made from my Atari. Note that the [BASIC listing](https://github.com/JSJvR/atari-8-bit-git-template/blob/367d22375184d9a73c7c38c9ff049913a7ef558b/utf8/LOVE.LST) and the commit message both contain a "♥" which is `0x00` in ATASCII and therefore not valid in a standard text file. ATASCII characters get translated automatically to their [closest Unicode equivalent](https://www.kreativekorp.com/charset/map/atascii/).
