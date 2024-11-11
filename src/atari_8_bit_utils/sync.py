@@ -24,7 +24,7 @@ override_config = {}
 
 
 default_config = {
-        'delay': 5,             # Time delay in seconds between iterations of the recon loop
+        'delay': 5,             # Time delay in seconds between executions of the recon loop
 
         # The next three config values are all related to how many times we should
         # run the recon loop before exiting. They are listed in order of precedence, i.e.
@@ -176,7 +176,7 @@ def save_state(state):
     f.write(json.dumps(state, indent=4))
     f.close()
 
-def decide_action(): 
+def decide_action() -> Action | list[Action]: 
     if exit_now:
         return Action.EXIT
 
@@ -206,7 +206,7 @@ def decide_action():
         return Action.DELETE_UTF8
     
     if not current_state['utf8']:
-        return Action.WRITE_UTF8
+        return [Action.WRITE_UTF8, Action.COMMIT] if get_config('auto_commit') else Action.WRITE_UTF8
 
     if current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit']):
         # Magic commit message that makes us push instead of commit
@@ -228,12 +228,12 @@ def update_state(key):
 def recon_tick():
     global iterations
     global exit_now
-    action = decide_action()
+    decision = decide_action()
 
-    if get_config('run_once') and action == Action.WAIT:
+    if get_config('run_once') and decision == Action.WAIT:
         print('Exiting immediately')
         exit_now = True
-        return action
+        return decision
 
     total_iterations = '?'
     if current_config:
@@ -242,18 +242,29 @@ def recon_tick():
         elif current_config['iterations']:
             total_iterations = current_config['iterations']
 
-    print(f'({iterations}/{total_iterations}) - Performing {action}... ')
+    sub_iteration = 0
+    is_list = type(decision) is list
+    print(f'IsList: {is_list}')
+    if is_list:
+        actions = decision
+    else:
+        actions = [decision]
 
-    if not action.recon_action is None:
-        action.recon_action()
+    while actions:
+        action = actions.pop(0)
+        print(f'({iterations}.{sub_iteration}/{total_iterations}) - Performing {action}... ')
+        if not action.recon_action is None:
+            action.recon_action()
     
-    if not action.key is None:
-        update_state(action.key)
+        if not action.key is None:
+            update_state(decision.key)
 
-    print("...Done\n")
+        print("...Done\n")
+        sub_iteration =+ 1
 
     iterations += 1
-    return action
+    
+    return decision
 
 def recon_loop():
     global exit_now
