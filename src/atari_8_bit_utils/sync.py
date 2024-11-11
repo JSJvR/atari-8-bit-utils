@@ -21,7 +21,9 @@ default_cofig = {
         'daemon': False,
         'iterations': 100
     }
+
 exit_now = False
+daemon_override = False
 
 def get_default_config():
     global current_config
@@ -148,7 +150,7 @@ def decide_action():
     if stored_state['config'] and (not current_config or current_config != stored_state['config']):
         return Action.APPLY_CONFIG
 
-    if not current_config['daemon'] and iterations >= current_config['iterations']:
+    if not (current_config['daemon'] or daemon_override) and iterations >= current_config['iterations']:
         return Action.EXIT
 
     if not current_state['atr']:
@@ -194,7 +196,7 @@ def recon_tick(once: bool):
 
     total_iterations = '?'
     if current_config:
-        if current_config['daemon']:
+        if daemon_override or current_config['daemon']:
             total_iterations = '∞'
         elif current_config['iterations']:
             total_iterations = current_config['iterations']
@@ -230,7 +232,9 @@ def init(clobber = False):
     else:
         print(f'Skipping initialization. State file "{state_file}" already exists')        
 
-def sync_main(once: bool = False, reset: bool = False):
+def sync_main(once: bool = False, reset: bool = False, daemon: bool = False):
+    global daemon_override
+    daemon_override = daemon
     init(reset)
     recon_loop(once)
 

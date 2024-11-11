@@ -75,12 +75,13 @@ def utf2ata(
 ):
     convert(input, output, to_atascii, files_to_atascii)
 
-@app.command(help='Keep an ATR image and git repo in sync')
+@app.command(help='Keeps an ATR image and git repo in sync')
 def sync_atr(
     once: Annotated[bool, typer.Option(help='Synchronize only once and exit when there is nothing to do.')] = False,
-    force_init: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False
+    force_init: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False,
+    daemon: Annotated[bool, typer.Option(help='Run forever in a loop. Overrides config.daemon in state.json')] = False
 ):
-    sync_main(once, force_init)
+    sync_main(once, force_init, daemon)
 
 if __name__ == "__main__":
     logging.basicConfig(stream=logging.StreamHandler(sys.stdout).stream, level=logging.INFO)
