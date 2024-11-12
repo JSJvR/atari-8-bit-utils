@@ -2,36 +2,41 @@ from enum import Enum
 from collections.abc import Callable
 from typing import TypeAlias
 
+
 class Result(Enum):
     SUCCESS = 1
     FAILURE = 2
 
-Predicate: TypeAlias =  Callable[[], bool]
+
+Predicate: TypeAlias = Callable[[], bool]
 Action: TypeAlias = Callable[[], Result]
 
 ALWAYS: Predicate = lambda: True
 NEVER: Predicate = lambda: False
 
+
 class Behavior:
     def should_run(self) -> bool:
         return self.predicate()
-    
+
     def apply(self) -> Result:
         return Result.FAILURE
-    
+
     def __init__(self, name: str, predicate: Predicate = NEVER) -> None:
         self.name: str = name
         self.predicate: Predicate = predicate
-    
+
+
 class Leaf(Behavior):
     def __init__(self, action: Action, **kwds) -> None:
         self.action: Action = action
-        super().__init__(**kwds)    
+        super().__init__(**kwds)
 
     def apply(self) -> Result:
         result = self.action()
         print(f'Action {self.name} done with result {result}')
         return result
+
 
 class Sequence(Behavior):
 
@@ -49,6 +54,7 @@ class Sequence(Behavior):
 
         # print(f'Sequence: {self.name} -> {result}')
         return result
+
 
 class Selector(Behavior):
 
@@ -69,7 +75,8 @@ class Selector(Behavior):
 
         # print(f'Selector: {self.name} -> {result}')
         return result
-    
+
+
 class BehaviorTree:
 
     def __init__(self) -> None:
@@ -82,7 +89,7 @@ class BehaviorTree:
         self.behaviors[name] = leaf
         return leaf
 
-    def add_sequence(self, name: str, children: list[str|Behavior], predicate: Predicate = lambda: True) -> Behavior:
+    def add_sequence(self, name: str, children: list[str | Behavior], predicate: Predicate = lambda: True) -> Behavior:
         seq = Sequence(name=name, behaviors=children, predicate=predicate)
         self.behaviors[name] = seq
         return seq
@@ -93,7 +100,8 @@ class BehaviorTree:
         return sel
 
     def set_root(self, root: str):
-        self.root = root if isinstance(root, Behavior) else self.behaviors.get(root)
+        self.root = root if isinstance(
+            root, Behavior) else self.behaviors.get(root)
 
     def tick(self) -> Result:
         return self.root.apply() if self.root.should_run() else Result.FAILURE

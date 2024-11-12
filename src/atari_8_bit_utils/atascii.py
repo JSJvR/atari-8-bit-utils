@@ -1,7 +1,6 @@
 import os
 import sys
 
-
 # Initialize ATASCII to UTF-8 mapping
 
 translate = {
@@ -177,6 +176,7 @@ def dump_mappings():
     print('*****************************')
     for k, v in inv_translate.items():
         print(k, ': ', hex(v))
+
 
 if __name__ == '__main__':
     dump_mappings()

@@ -9,7 +9,7 @@ import sys
 import time
 from .atascii import clear_dir
 from .atascii import files_to_utf8
-from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Predicate, Result
+from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Predicate, Result, Action
 from .tree import atr_tree
 
 state_file = './state.json'
@@ -24,18 +24,20 @@ tree = BehaviorTree()
 override_config = {
     'exit_now': False,
     'iterations': 0
-} 
+}
 
 stored_state: dict | None = None
 current_state: dict | None = None
 
 default_config = {
-        'delay': 5,             # Time delay in seconds between executions of the recon loop
-        'max_iterations': 0,    # The number of full reconciliations to do, i.e. we're only counting
-                                # iterations where we end up waiting
-        
-        'auto_commit': False    # Flag indicating whether we should commit every time a files changes
-    }
+    'delay': 5,             # Time delay in seconds between executions of the recon loop
+    # The number of full reconciliations to do, i.e. we're only counting
+    'max_iterations': 0,
+    # iterations where we end up waiting
+
+    # Flag indicating whether we should commit every time a files changes
+    'auto_commit': False
+}
 
 
 def apply_default_config():
@@ -54,7 +56,7 @@ def get_config(key: str):
     should only be used in the main business logic and not in any code
     related to loading, saving or defaulting config values in
     in state.json
-    ''' 
+    '''
     config_val = None
 
     override = override_config.get(key)
@@ -115,17 +117,17 @@ def write_utf8():
 
 
 def commit():
-    subprocess.run('git add ./utf8') 
-    subprocess.run('git add ./atascii') 
-    subprocess.run('git commit -F ./utf8/COMMIT.MSG')  
+    subprocess.run('git add ./utf8')
+    subprocess.run('git add ./atascii')
+    subprocess.run('git commit -F ./utf8/COMMIT.MSG')
     return Result.SUCCESS
 
 
-def update_state(key, previous: Result = Result.SUCCESS) -> Result: 
+def update_state(key, previous: Result = Result.SUCCESS) -> Result:
     if previous != Result.SUCCESS:
         print(f'\nSkipping state up since step returned {previous}')
         return previous
-    
+
     stored_state = load_state()
     current_state = get_current_state()
 
@@ -151,11 +153,11 @@ def success(msg: str) -> Result:
 
 def iterate():
     override_config['iterations'] += 1
-    
+
     if get_config('max_iterations') > 0 and get_config('iterations') >= get_config('max_iterations'):
         override_config['exit_now'] = True
         return Result.SUCCESS
-    
+
     return Result.FAILURE
 
 
@@ -189,20 +191,20 @@ actions: dict[str, Action] = {
 
 
 def md5checksum(file):
-    f = open(file,'rb')
+    f = open(file, 'rb')
     checksum = hashlib.md5(f.read()).hexdigest()
     f.close()
     return checksum
 
 
-def scandir(path, output, pattern = '.*'):
+def scandir(path, output, pattern='.*'):
     dir = os.scandir(path)
     with dir:
         for entry in dir:
             if not entry.name.startswith('.') and entry.is_file() and not re.search(pattern, entry.name) is None:
                 checksum = md5checksum(entry.path)
                 output.append({
-                    'name': entry.name, 
+                    'name': entry.name,
                     'checksum': checksum
                 })
     dir.close()
@@ -216,13 +218,13 @@ def get_current_state():
         'atascii': list(),
         'utf8': list()
     }
-    
+
     # ATR
     scandir('./atr', state['atr'], '\\.atr$')
-    
+
     # ATASCII
     scandir('./atascii', state['atascii'])
-    
+
     # UTF-8
     scandir('./utf8', state['utf8'])
 
@@ -235,8 +237,8 @@ def get_current_state():
         state['commit'] = {
             'msg': msg
         }
-    
-    return state  
+
+    return state
 
 
 def save_state(state):
@@ -264,6 +266,7 @@ def recon_tick():
     print(f'({override_config['iterations']}/{max_iterations})... ', end='')
     tree.tick()
 
+
 def recon_loop():
     while True:
         try:
@@ -271,6 +274,7 @@ def recon_loop():
         except KeyboardInterrupt:
             override_config['iterations'] += 1
             override_config['exit_now'] = True
+
 
 def createBehavior(item: str | dict) -> Behavior:
     if isinstance(item, str):
@@ -298,18 +302,19 @@ def createBehavior(item: str | dict) -> Behavior:
 
 
 def build_tree():
-    root = createBehavior(atr_tree)   
+    root = createBehavior(atr_tree)
 
-    tree.set_root(root)     
+    tree.set_root(root)
 
 
-def init(clobber = False):
+def init(clobber=False):
 
     if clobber or not os.path.isfile(state_file):
         state = get_current_state()
         save_state(state)
     else:
-        print(f'Skipping initialization. State file "{state_file}" already exists')        
+        print(f'Skipping initialization. State file "{
+              state_file}" already exists')
 
 
 def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):

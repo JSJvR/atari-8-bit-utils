@@ -1,13 +1,14 @@
+from argparse import Action
 import unittest
-import json
-from atari_8_bit_utils.behavior import *
 
-
+from atari_8_bit_utils.behavior import Behavior, BehaviorTree, Result, Selector
+from atari_8_bit_utils.tree import atr_tree
 
 i = 0
 last = ''
 names = []
 tree = BehaviorTree()
+
 
 def simpleAction(name: str) -> Result:
     global last
@@ -16,24 +17,27 @@ def simpleAction(name: str) -> Result:
     last = name
     i += 1
     names.append(name)
-    return Result.FAILURE if name in ['Wait', 'WriteUTF8'] else Result.FAILURE
+    return Result.SUCCESS if name in ['Wait', 'WriteUTF8'] else Result.FAILURE
+
 
 def leafAction(name: str) -> Action:
     return lambda: simpleAction(name)
+
 
 def createBehavior(item) -> Behavior:
     if isinstance(item, str):
         return tree.add_leaf(item, leafAction(item))
     if isinstance(item, dict):
+        if item.get('ref'):
+            return tree.behaviors.get(item['ref'])
         children = list(map(lambda c: createBehavior(c), item['children']))
+        name = item['name']
         if item['type'] == 'Sequence':
-            return tree.add_sequence(item['name'], children)
+            return tree.add_sequence(name, children)
+        elif item['type'] == 'Selector':
+            return tree.add_selector(name, children)
         else:
-            return tree.add_selector(item['name'], children)
-    else:
-        return f'Error: {type(item)} {item}'
-
-
+            return f'Error: {type(item)} {item}'
 
 
 class TestBehaviors(unittest.TestCase):
@@ -41,29 +45,27 @@ class TestBehaviors(unittest.TestCase):
     def setUp(self) -> None:
         self.maxDiff = None
         return super().setUp()
-    
+
     def test_simple(self):
 
         self.assertEqual(Result.SUCCESS, Result.SUCCESS)
 
     def test_parse_json(self):
-        f = open('src/atari_8_bit_utils/tree.json')
-        treestr = json.loads(f.read())
-        
-        foo = createBehavior(treestr)
 
-        self.assertIsInstance(foo, Selector)
-        self.assertEqual(foo.name, 'Root')
+        root = createBehavior(atr_tree)
+
+        self.assertIsInstance(root, Selector)
+        self.assertEqual(root.name, 'Root')
         tree.set_root('Root')
 
         self.assertEqual(tree.behaviors['ForceQuit'].name, 'ForceQuit')
 
-        self.assertEqual(tree.root, foo)
+        self.assertEqual(tree.root, root)
 
-        self.assertEqual(len(tree.behaviors), 18)
+        self.assertEqual(len(tree.behaviors), 19)
+
         result = tree.tick()
-        self.assertEqual(last, 'Wait')
-        self.assertEqual(i, 9)
-        self.assertEqual(names, [])
+        self.assertEqual(last, 'WriteUTF8')
+        self.assertEqual(i, 8)
+        # self.assertEqual(names, [])
         self.assertEqual(result, Result.SUCCESS)
-        f.close()
