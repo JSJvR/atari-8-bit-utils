@@ -8,8 +8,10 @@ import textwrap
 from enum import Enum
 import sys
 import time
+from collections.abc import Callable
 from .atascii import clear_dir
 from .atascii import files_to_utf8
+from .behavior import Predicate, Result
 
 state_file = './state.json'
 
@@ -20,8 +22,12 @@ current_config = None
 # Config object holding any setting that were overridden for the current run
 # These config values will be used in the program logic, but will not be persisted
 # to state.json
-override_config = {} 
+override_config = {
+    'exit_now': False
+} 
 
+stored_state: dict | None = None
+current_state: dict | None = None
 
 default_config = {
         'delay': 5,             # Time delay in seconds between executions of the recon loop
@@ -37,15 +43,26 @@ default_config = {
         'auto_commit': False    # Flag indicating whether we should commit every time a files changes
     }
 
-exit_now = False
+predicates: dict[str, Predicate] = {
+    "ForceQuit": lambda: get_config('exit_now'),
+    "DefaultConfig": lambda: stored_state.get('config') is None,
+    "ApplyConfig": lambda: stored_state['config'] and (not current_config or current_config != stored_state['config']),
+    "ExtractATR": lambda: (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii'],
+    "DeleteUTF8": lambda: (stored_state['atascii'] != current_state['atascii']),
+    "AutoCommit": lambda: get_config('auto_commit'),
+    "WriteUTF8": lambda: not current_state['utf8'],
+    "ConditionalCommit": lambda: current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit'])
+}
 
-def get_default_config():
+
+def apply_default_config():
     global current_config
     print('\tNo config found in state.json. Using defaults')
     current_config = default_config
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t'))
     print('\tWith overrides:')
     print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
+    return Result.SUCCESS
 
 def get_config(key: str):
     """
@@ -84,15 +101,47 @@ def apply_config():
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t  '))
     print('\tWith overrides:')
     print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
+    return Result.SUCCESS
 
 def wait():
     delay = get_config('delay')
     print(f'\tSleeping for {delay} seconds')
     time.sleep(delay)
+    return Result.SUCCESS
 
+def extract_atr():
+    clear_dir('./atascii')
+    atr_file = get_current_state()['atr'][0]['name']
+    subprocess.run(f'lsatr -X ./atascii ./atr/{atr_file}')
+    return Result.SUCCESS
+
+def delete_utf8():
+    clear_dir('./utf8')
+    return Result.SUCCESS
+
+def write_utf8():
+    files_to_utf8('./atascii', './utf8')
+    return Result.SUCCESS
+
+def commit():
+    subprocess.run('git add ./utf8') 
+    subprocess.run('git add ./atascii') 
+    subprocess.run('git commit -F ./utf8/COMMIT.MSG')  
+    return Result.SUCCESS
+
+actions: dict[str, Callable[[], Result]] = {
+    'ForceQuit': lambda: sys.exit('\tExiting sync process'),
+    'DefaultConfig': apply_default_config,
+    'ApplyConfig': apply_config,
+    'ExtractATR': extract_atr,
+    'DeleteUTF8': delete_utf8,
+    'WriteUTF8': write_utf8,
+    'Commit': commit,
+    'Wait': wait
+}
 
 class Action(Enum):
-    DEFAULT_CONFIG = 'config', lambda: get_default_config()
+    DEFAULT_CONFIG = 'config', lambda: apply_default_config()
     APPLY_CONFIG = 'config', lambda: apply_config()
     EXTRACT_ATR = 'atr', lambda: extract_atr()
     DELETE_UTF8 = 'atascii', lambda: clear_dir('./utf8')
@@ -159,17 +208,7 @@ def get_current_state():
             'msg': msg
         }
     
-    return state
-
-def extract_atr():
-    clear_dir('./atascii')
-    atr_file = get_current_state()['atr'][0]['name']
-    subprocess.run(f'lsatr -X ./atascii ./atr/{atr_file}')
-
-def commit():
-    subprocess.run('git add ./utf8') 
-    subprocess.run('git add ./atascii') 
-    subprocess.run('git commit -F ./utf8/COMMIT.MSG')    
+    return state  
 
 def save_state(state):
     f = open(state_file, mode='w')
@@ -177,9 +216,11 @@ def save_state(state):
     f.close()
 
 def decide_action() -> Action | list[Action]: 
-    if exit_now:
+    if get_config('exit_now'):
         return Action.EXIT
 
+    global stored_state
+    global current_state
     stored_state = load_state()
     current_state = get_current_state()
 
@@ -196,10 +237,7 @@ def decide_action() -> Action | list[Action]:
     if not current_state['atr']:
         return Action.ERROR
     
-    if (not stored_state['atr']) or current_state['atr'][0] != stored_state['atr'][0]:
-        return Action.EXTRACT_ATR
-    
-    if not current_state['atascii']:
+    if (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii']:
         return Action.EXTRACT_ATR
 
     if (stored_state['atascii'] != current_state['atascii']):
@@ -227,12 +265,11 @@ def update_state(key):
 # Runs a single iteration of the reconciliation logic
 def recon_tick():
     global iterations
-    global exit_now
     decision = decide_action()
 
     if get_config('run_once') and decision == Action.WAIT:
         print('Exiting immediately')
-        exit_now = True
+        override_config['exit_now'] = True
         return decision
 
     total_iterations = '?'
@@ -267,14 +304,13 @@ def recon_tick():
     return decision
 
 def recon_loop():
-    global exit_now
     while True:
         try:
             recon_tick()
         except KeyboardInterrupt:
             global iterations
             iterations += 1
-            exit_now = True
+            override_config['exit_now'] = True
 
 def init(clobber = False):
 
