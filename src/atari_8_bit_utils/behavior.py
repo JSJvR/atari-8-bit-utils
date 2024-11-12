@@ -34,7 +34,7 @@ class Leaf(Behavior):
 
     def apply(self) -> Result:
         result = self.action()
-        print(f'Action {self.name} done with result {result}')
+        # print(f'Action {self.name} done with result {result}')
         return result
 
 

@@ -42,7 +42,7 @@ default_config = {
 
 def apply_default_config():
     global current_config
-    print('\tNo config found in state.json. Using defaults')
+    print('No config found in state.json. Using defaults')
     current_config = default_config
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t'))
     print('\tWith overrides:')
@@ -69,7 +69,7 @@ def get_config(key: str):
     else:
         config_val = current_config.get(key)
 
-    # print(f'\t\tget_config({key}) --> {config_val}')
+    # print(f'\tget_config({key}) --> {config_val}')
     return config_val
 
 
@@ -85,7 +85,7 @@ def apply_config():
 
     # Merge defaults with values loaded from file
     current_config = default_config | load_state()['config']
-    print('\tUsing config:')
+    print('Using config:')
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t  '))
     print('\tWith overrides:')
     print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
@@ -94,7 +94,7 @@ def apply_config():
 
 def wait():
     delay = get_config('delay')
-    print(f'\tSleeping for {delay} seconds')
+    print(f'Sleeping for {delay} seconds')
     time.sleep(delay)
     return Result.SUCCESS
 
@@ -263,7 +263,7 @@ def recon_tick():
         case 0:
             max_iterations = '∞'
 
-    print(f'({override_config['iterations']}/{max_iterations})... ', end='')
+    print(f'({override_config['iterations']}/{max_iterations}) - ', end='')
     tree.tick()
 
 
@@ -313,8 +313,7 @@ def init(clobber=False):
         state = get_current_state()
         save_state(state)
     else:
-        print(f'Skipping initialization. State file "{
-              state_file}" already exists')
+        print(f'Skipping initialization. State file "{state_file}" already exists')
 
 
 def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
