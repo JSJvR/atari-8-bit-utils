@@ -38,13 +38,14 @@ class TestAtasciiConversions(unittest.TestCase):
         to_utf8(out_atascii, out_utf8)
         self.assertTrue(filecmp.cmp(in_utf8, out_utf8, shallow=False))
 
-    def __init__(self, methodName = "runTest"):
+    def __init__(self, methodName="runTest"):
         data_path = 'testdata/'
         self.out_path = data_path + 'out/'
         self.atascii_path = data_path + 'atascii/'
         self.utf8_path = data_path + 'utf8/'
 
         super().__init__(methodName)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,13 +1,13 @@
-import json
 from enum import Enum
 from collections.abc import Callable
+from typing import TypeAlias
 
 class Result(Enum):
     SUCCESS = 1
     FAILURE = 2
 
-type Predicate =  Callable[[], bool]
-type Action = Callable[[], Result]
+Predicate: TypeAlias =  Callable[[], bool]
+Action: TypeAlias = Callable[[], Result]
 
 ALWAYS: Predicate = lambda: True
 NEVER: Predicate = lambda: False

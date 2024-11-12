@@ -5,13 +5,12 @@ import re
 import json
 import subprocess
 import textwrap
-from enum import Enum
 import sys
 import time
-from collections.abc import Callable
 from .atascii import clear_dir
 from .atascii import files_to_utf8
 from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Predicate, Result
+from .tree import atr_tree
 
 state_file = './state.json'
 
@@ -32,17 +31,12 @@ current_state: dict | None = None
 
 default_config = {
         'delay': 5,             # Time delay in seconds between executions of the recon loop
-
-        # The next three config values are all related to how many times we should
-        # run the recon loop before exiting. They are listed in order of precedence, i.e.
-        # 'run_once' overrides the behavior of 'daemon' which override the behavior of
-        # 'max_iterations'
-        'run_once': False,      # If True, exit when we encounter Action.WAIT for the first time
-        'daemon': False,        # In daemon mode we run forever
-        'max_iterations': 100,      # The number of iterations of the recon loop to run before exiting
+        'max_iterations': 0,    # The number of full reconciliations to do, i.e. we're only counting
+                                # iterations where we end up waiting
         
         'auto_commit': False    # Flag indicating whether we should commit every time a files changes
     }
+
 
 def apply_default_config():
     global current_config
@@ -52,6 +46,7 @@ def apply_default_config():
     print('\tWith overrides:')
     print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
     return Result.SUCCESS
+
 
 def get_config(key: str):
     '''
@@ -75,11 +70,13 @@ def get_config(key: str):
     # print(f'\t\tget_config({key}) --> {config_val}')
     return config_val
 
+
 def load_state():
     f = open(state_file, mode='r')
     state = json.loads(f.read())
     f.close()
     return state
+
 
 def apply_config():
     global current_config
@@ -92,12 +89,13 @@ def apply_config():
     print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
     return Result.SUCCESS
 
+
 def wait():
-    override_config['iterations'] += 1
     delay = get_config('delay')
     print(f'\tSleeping for {delay} seconds')
     time.sleep(delay)
     return Result.SUCCESS
+
 
 def extract_atr():
     clear_dir('./atascii')
@@ -105,19 +103,23 @@ def extract_atr():
     subprocess.run(f'lsatr -X ./atascii ./atr/{atr_file}')
     return Result.SUCCESS
 
+
 def delete_utf8():
     clear_dir('./utf8')
     return Result.SUCCESS
 
+
 def write_utf8():
     files_to_utf8('./atascii', './utf8')
     return Result.SUCCESS
+
 
 def commit():
     subprocess.run('git add ./utf8') 
     subprocess.run('git add ./atascii') 
     subprocess.run('git commit -F ./utf8/COMMIT.MSG')  
     return Result.SUCCESS
+
 
 def update_state(key, previous: Result = Result.SUCCESS) -> Result: 
     if previous != Result.SUCCESS:
@@ -132,52 +134,66 @@ def update_state(key, previous: Result = Result.SUCCESS) -> Result:
     save_state(stored_state)
     return Result.SUCCESS
 
-def update(key: str, action: Callable[[], Result]) -> Callable[[], Result]:
+
+def update(key: str, action: Action) -> Action:
     return lambda: update_state(key, action())
+
 
 def fail(msg: str) -> Result:
     print(msg)
     return Result.FAILURE
 
+
 def success(msg: str) -> Result:
     print(msg)
     return Result.SUCCESS
+
+
+def iterate():
+    override_config['iterations'] += 1
+    
+    if get_config('max_iterations') > 0 and get_config('iterations') >= get_config('max_iterations'):
+        override_config['exit_now'] = True
+        return Result.SUCCESS
+    
+    return Result.FAILURE
+
 
 predicates: dict[str, Predicate] = {
     'FatalError': lambda: get_config('error'),
     'ForceQuit': lambda: get_config('exit_now'),
     'DefaultConfig': lambda: stored_state.get('config') is None,
     'ApplyConfig': lambda: stored_state['config'] and (not current_config or current_config != stored_state['config']),
-    'ExitOnIterations': lambda: not get_config('daemon') and get_config('iterations') >= get_config('max_iterations'),
     'ExtractATR': lambda: (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii'],
     'DeleteUTF8': lambda: (stored_state['atascii'] != current_state['atascii']),
     'AutoCommit': lambda: get_config('auto_commit'),
     'WriteUTF8': lambda: not current_state['utf8'],
-    'RunOnceExit': lambda: get_config('run_once'),
     'ConditionalCommit': lambda: current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit'])
 }
 
-actions: dict[str, Callable[[], Result]] = {
+
+actions: dict[str, Action] = {
     'FatalError': lambda: sys.exit('FATAL ERROR: ', get_config('error')),
     'ForceQuit': lambda: sys.exit('\tExiting sync process'),
     'DefaultConfig': update('config', apply_default_config),
     'ApplyConfig': update('config', apply_config),
-    'ExitOnIterations': lambda: sys.exit('\tMax iterations reached. Exiting sync process'),
     'ExtractATR': update('atr', extract_atr),
     'DeleteUTF8': update('atascii', delete_utf8),
     'WriteUTF8': update('utf8', write_utf8),
     'PreCommit': lambda: success('PreCommit not yet implemented'),
     'Commit': update('commit', commit),
     'PostCommit': lambda: success('PostCommit not yet implemented'),
-    'RunOnceExit': lambda: sys.exit('\tRunOnce complete. Exiting sync process'),
+    'Iterate': iterate,
     'Wait': wait
 }
+
 
 def md5checksum(file):
     f = open(file,'rb')
     checksum = hashlib.md5(f.read()).hexdigest()
     f.close()
     return checksum
+
 
 def scandir(path, output, pattern = '.*'):
     dir = os.scandir(path)
@@ -191,6 +207,7 @@ def scandir(path, output, pattern = '.*'):
                 })
     dir.close()
     output.sort(key=lambda x: x['name'])
+
 
 def get_current_state():
     state = {
@@ -221,10 +238,12 @@ def get_current_state():
     
     return state  
 
+
 def save_state(state):
     f = open(state_file, mode='w')
     f.write(json.dumps(state, indent=4))
     f.close()
+
 
 # Runs a single iteration of the reconciliation logic
 def recon_tick():
@@ -234,16 +253,15 @@ def recon_tick():
     stored_state = load_state()
     current_state = get_current_state()
 
-    max_iterations = '?'
+    max_iterations = get_config('max_iterations')
 
-    if get_config('run_once'):
-        max_iterations = ''
-    if get_config('daemon'):
-        max_iterations = '∞'
-    else:
-        max_iterations = get_config('max_iterations')
+    match max_iterations:
+        case None:
+            max_iterations = '?'
+        case 0:
+            max_iterations = '∞'
 
-    print(f'({get_config('iterations')}/{max_iterations})... ', end='')
+    print(f'({override_config['iterations']}/{max_iterations})... ', end='')
     tree.tick()
 
 def recon_loop():
@@ -278,13 +296,12 @@ def createBehavior(item: str | dict) -> Behavior:
     else:
         return f'Error: {type(item)} {item}'
 
+
 def build_tree():
-    f = open('tree.json')
-    treestr = json.loads(f.read())
-        
-    root = createBehavior(treestr)   
+    root = createBehavior(atr_tree)   
 
     tree.set_root(root)     
+
 
 def init(clobber = False):
 
@@ -294,20 +311,19 @@ def init(clobber = False):
     else:
         print(f'Skipping initialization. State file "{state_file}" already exists')        
 
+
 def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
 
     init(reset)
 
-    # Apply overrides
-    # In order to support overriding flag in both directions, we need to 
-    # default to None and only apply the override if the flag is present
-    if not once is None:
-        override_config['run_once'] = once
+    if once:
+        override_config['max_iterations'] = 1
+    elif daemon:
+        override_config['max_iterations'] = 0
 
-    if not daemon is None:
-        override_config['daemon'] = daemon
     build_tree()
     recon_loop()
+
 
 if __name__ == '__main__':
     sync_main()

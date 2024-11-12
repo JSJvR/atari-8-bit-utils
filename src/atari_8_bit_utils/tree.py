@@ -1,4 +1,4 @@
-{
+atr_tree = {
     "name": "Root",
     "type": "Selector",
     "children": [
@@ -8,8 +8,7 @@
             "children": [
                 "ForceQuit",
                 "DefaultConfig",
-                "ApplyConfig",
-                "ExitOnIterations"
+                "ApplyConfig"
             ]
         },
         {
@@ -55,7 +54,7 @@
             ]
         },
         "Incoming",
-        "RunOnceExit",
+        "Iterate",
         "Wait"
     ]
 }
