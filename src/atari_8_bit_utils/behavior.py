@@ -1,6 +1,6 @@
 from enum import Enum
 from collections.abc import Callable
-from typing import TypeAlias
+# from typing import TypeAlias
 
 
 class Result(Enum):
@@ -8,8 +8,8 @@ class Result(Enum):
     FAILURE = 2
 
 
-Predicate: TypeAlias = Callable[[], bool]
-Action: TypeAlias = Callable[[], Result]
+Predicate = Callable[[], bool]
+Action = Callable[[], Result]
 
 ALWAYS: Predicate = lambda: True
 NEVER: Predicate = lambda: False
