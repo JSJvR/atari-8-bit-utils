@@ -257,11 +257,10 @@ def recon_tick():
 
     max_iterations = get_config('max_iterations')
 
-    match max_iterations:
-        case None:
-            max_iterations = '?'
-        case 0:
-            max_iterations = '∞'
+    if max_iterations is None:
+        max_iterations = '?'
+    elif max_iterations <= 0:
+        max_iterations = '∞'
 
     print(f'({override_config['iterations']}/{max_iterations}) - ', end='')
     tree.tick()
