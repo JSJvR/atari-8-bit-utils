@@ -1,5 +1,5 @@
 # Atari 8-bit Python Utilities
-![Auto Tag badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/auto_tag.yml/badge.svg) ![Python Package badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-package.yml/badge.svg) ![Python Publish badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-publish.yml/badge.svg) 
+[![PyPI version](https://img.shields.io/pypi/v/atari-8-bit-utils)](https://pypi.org/project/atari-8-bit-utils/)![Auto Tag badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/auto_tag.yml/badge.svg) ![Python Package badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-package.yml/badge.svg) ![Python Publish badge](https://github.com/JSJvR/atari-8-bit-utils/actions/workflows/python-publish.yml/badge.svg) 
 
 ## Prerequisites
 
