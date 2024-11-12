@@ -320,7 +320,7 @@ def init(clobber=False):
 
 def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
 
-    init(reset)
+   # init(reset)
 
     if once:
         override_config['max_iterations'] = 1
