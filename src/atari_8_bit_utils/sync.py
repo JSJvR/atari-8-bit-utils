@@ -262,7 +262,8 @@ def recon_tick():
     elif max_iterations <= 0:
         max_iterations = '∞'
 
-    print(f'({override_config['iterations']}/{max_iterations}) - ', end='')
+    iterations = override_config['iterations']
+    print(f'({iterations}/{max_iterations}) - ', end='')
     tree.tick()
 
 
