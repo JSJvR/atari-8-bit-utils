@@ -1,3 +1,4 @@
+from collections.abc import Callable
 import os
 import hashlib
 import os.path
@@ -9,7 +10,7 @@ import sys
 import time
 from .atascii import clear_dir
 from .atascii import files_to_utf8
-from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Predicate, Result, Action
+from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Result
 from .tree import atr_tree
 
 state_file = './state.json'
@@ -137,7 +138,7 @@ def update_state(key, previous: Result = Result.SUCCESS) -> Result:
     return Result.SUCCESS
 
 
-def update(key: str, action: Action) -> Action:
+def update(key: str, action: Callable[[], Result]) -> Callable[[], Result]:
     return lambda: update_state(key, action())
 
 
@@ -161,7 +162,7 @@ def iterate():
     return Result.FAILURE
 
 
-predicates: dict[str, Predicate] = {
+predicates: dict[str, Callable[[], bool]] = {
     'FatalError': lambda: get_config('error'),
     'ForceQuit': lambda: get_config('exit_now'),
     'DefaultConfig': lambda: stored_state.get('config') is None,
@@ -174,7 +175,7 @@ predicates: dict[str, Predicate] = {
 }
 
 
-actions: dict[str, Action] = {
+actions: dict[str, Callable[[], Result]] = {
     'FatalError': lambda: sys.exit('FATAL ERROR: ', get_config('error')),
     'ForceQuit': lambda: sys.exit('\tExiting sync process'),
     'DefaultConfig': update('config', apply_default_config),

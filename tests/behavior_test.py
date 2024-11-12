@@ -1,4 +1,4 @@
-from argparse import Action
+from collections.abc import Callable
 import unittest
 
 from atari_8_bit_utils.behavior import Behavior, BehaviorTree, Result, Selector
@@ -20,7 +20,7 @@ def simpleAction(name: str) -> Result:
     return Result.SUCCESS if name in ['Wait', 'WriteUTF8'] else Result.FAILURE
 
 
-def leafAction(name: str) -> Action:
+def leafAction(name: str) -> Callable[[], Result]:
     return lambda: simpleAction(name)
 
 

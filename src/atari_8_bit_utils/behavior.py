@@ -8,11 +8,8 @@ class Result(Enum):
     FAILURE = 2
 
 
-Predicate = Callable[[], bool]
-Action = Callable[[], Result]
-
-ALWAYS: Predicate = lambda: True
-NEVER: Predicate = lambda: False
+ALWAYS: Callable[[], bool] = lambda: True
+NEVER: Callable[[], bool] = lambda: False
 
 
 class Behavior:
@@ -22,19 +19,19 @@ class Behavior:
     def apply(self) -> Result:
         return Result.FAILURE
 
-    def __init__(self, name: str, predicate: Predicate = NEVER) -> None:
+    def __init__(self, name: str, predicate: Callable[[], bool] = NEVER) -> None:
         self.name: str = name
-        self.predicate: Predicate = predicate
+        self.predicate: Callable[[], bool] = predicate
 
 
 class Leaf(Behavior):
-    def __init__(self, action: Action, **kwds) -> None:
-        self.action: Action = action
+    def __init__(self, action: Callable[[], Result], **kwds) -> None:
+        self.action: Callable[[], Result] = action
         super().__init__(**kwds)
 
     def apply(self) -> Result:
         result = self.action()
-        # print(f'Action {self.name} done with result {result}')
+        # print(f'Callable[[], Result] {self.name} done with result {result}')
         return result
 
 
@@ -84,17 +81,17 @@ class BehaviorTree:
         self.root: Behavior = None
         pass
 
-    def add_leaf(self, name: str, action: Action, predicate: Predicate = ALWAYS) -> Behavior:
+    def add_leaf(self, name: str, action: Callable[[], Result], predicate: Callable[[], bool] = ALWAYS) -> Behavior:
         leaf = Leaf(name=name, action=action, predicate=predicate)
         self.behaviors[name] = leaf
         return leaf
 
-    def add_sequence(self, name: str, children: list[str | Behavior], predicate: Predicate = lambda: True) -> Behavior:
+    def add_sequence(self, name: str, children: list[str | Behavior], predicate: Callable[[], bool] = lambda: True) -> Behavior:
         seq = Sequence(name=name, behaviors=children, predicate=predicate)
         self.behaviors[name] = seq
         return seq
 
-    def add_selector(self, name: str, children: list[str], predicate: Predicate = lambda: True) -> Behavior:
+    def add_selector(self, name: str, children: list[str], predicate: Callable[[], bool] = lambda: True) -> Behavior:
         sel = Selector(name=name, behaviors=children, predicate=predicate)
         self.behaviors[name] = sel
         return sel
