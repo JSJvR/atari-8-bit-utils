@@ -1,8 +1,5 @@
 import os
-import subprocess
 import sys
-import time
-
 
 # Initialize ATASCII to UTF-8 mapping
 
@@ -73,10 +70,10 @@ for i in range(0x0, 0x80):
 for i in range(0x80, 0x100):
     val = translate.get(i)
     if val is None:
-        val = '`' + translate[i^0x80]
+        val = '`' + translate[i ^ 0x80]
         translate[i] = val
 
-    
+
 # Initialize UTF-8 to ATASCII mapping
 inv_translate = {v: k for k, v in translate.items()}
 
@@ -85,8 +82,9 @@ for k, v in translate.items():
     if (not v.startswith('`')) and (inv_translate.get('`' + v) is None):
         inv_translate['`' + v] = k ^ 0x80
 
+
 # Converts a single file from ATASCII to UTF-8
-def to_utf8(in_filename = '-', out_filename = '-'):
+def to_utf8(in_filename='-', out_filename='-'):
     if in_filename != '-':
         ifile = open(in_filename, 'rb')
     else:
@@ -108,20 +106,22 @@ def to_utf8(in_filename = '-', out_filename = '-'):
     ofile.close()
     ifile.close()
 
+
 # Scans a directory and converts all files from ATASCII to UTF-8
-def files_to_utf8(ipath, opath, clobber = False):
+def files_to_utf8(ipath, opath, clobber=False):
     if clobber:
         clear_dir(opath)
 
     with os.scandir(ipath) as it:
         for entry in it:
             if not entry.name.startswith('.') and entry.is_file():
-                out_filename = os.path.join(opath,entry.name)
+                out_filename = os.path.join(opath, entry.name)
                 print(f'Converting to UTF-8: {entry.path} --> {out_filename}')
                 to_utf8(entry.path, out_filename)
 
+
 # Converts a single file from UTF-8 to ATASCII
-def to_atascii(in_filename = '-', out_filename = '-'):
+def to_atascii(in_filename='-', out_filename='-'):
     if in_filename != '-':
         ifile = open(in_filename, 'r', encoding='utf-8')
     else:
@@ -131,7 +131,7 @@ def to_atascii(in_filename = '-', out_filename = '-'):
         ofile = open(out_filename, 'wb')
     else:
         ofile = sys.stdout
-    
+
     data = ifile.read(1)
     while data:
         key = data[0]
@@ -149,9 +149,10 @@ def files_to_atascii(ipath, opath):
     with os.scandir(ipath) as it:
         for entry in it:
             if not entry.name.startswith('.') and entry.is_file():
-                out_filename = os.path.join(opath,entry.name)
+                out_filename = os.path.join(opath, entry.name)
                 print(f'Converting to UTF-8: {entry.path} --> {out_filename}')
                 to_atascii(entry.path, out_filename)
+
 
 def clear_dir(path):
     print(f'Deleting all files in {path}')
@@ -161,6 +162,7 @@ def clear_dir(path):
             if not entry.name.startswith('.') and entry.is_file():
                 os.remove(entry.path)
     dir.close()
+
 
 def dump_mappings():
     print('*****************************')
@@ -174,6 +176,7 @@ def dump_mappings():
     print('*****************************')
     for k, v in inv_translate.items():
         print(k, ': ', hex(v))
+
 
 if __name__ == '__main__':
     dump_mappings()
