@@ -11,19 +11,20 @@ import time
 from collections.abc import Callable
 from .atascii import clear_dir
 from .atascii import files_to_utf8
-from .behavior import Predicate, Result
+from .behavior import ALWAYS, NEVER, Behavior, BehaviorTree, Predicate, Result
 
 state_file = './state.json'
 
 # Global variables
-iterations = 0
 current_config = None
+tree = BehaviorTree()
 
 # Config object holding any setting that were overridden for the current run
 # These config values will be used in the program logic, but will not be persisted
 # to state.json
 override_config = {
-    'exit_now': False
+    'exit_now': False,
+    'iterations': 0
 } 
 
 stored_state: dict | None = None
@@ -35,25 +36,13 @@ default_config = {
         # The next three config values are all related to how many times we should
         # run the recon loop before exiting. They are listed in order of precedence, i.e.
         # 'run_once' overrides the behavior of 'daemon' which override the behavior of
-        # 'iterations'
+        # 'max_iterations'
         'run_once': False,      # If True, exit when we encounter Action.WAIT for the first time
         'daemon': False,        # In daemon mode we run forever
-        'iterations': 100,      # The number of iterations of the recon loop to run before exiting
+        'max_iterations': 100,      # The number of iterations of the recon loop to run before exiting
         
         'auto_commit': False    # Flag indicating whether we should commit every time a files changes
     }
-
-predicates: dict[str, Predicate] = {
-    "ForceQuit": lambda: get_config('exit_now'),
-    "DefaultConfig": lambda: stored_state.get('config') is None,
-    "ApplyConfig": lambda: stored_state['config'] and (not current_config or current_config != stored_state['config']),
-    "ExtractATR": lambda: (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii'],
-    "DeleteUTF8": lambda: (stored_state['atascii'] != current_state['atascii']),
-    "AutoCommit": lambda: get_config('auto_commit'),
-    "WriteUTF8": lambda: not current_state['utf8'],
-    "ConditionalCommit": lambda: current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit'])
-}
-
 
 def apply_default_config():
     global current_config
@@ -65,12 +54,12 @@ def apply_default_config():
     return Result.SUCCESS
 
 def get_config(key: str):
-    """
+    '''
     Get's the effective config value for the given key. This function
     should only be used in the main business logic and not in any code
     related to loading, saving or defaulting config values in
     in state.json
-    """ 
+    ''' 
     config_val = None
 
     override = override_config.get(key)
@@ -104,6 +93,7 @@ def apply_config():
     return Result.SUCCESS
 
 def wait():
+    override_config['iterations'] += 1
     delay = get_config('delay')
     print(f'\tSleeping for {delay} seconds')
     time.sleep(delay)
@@ -129,38 +119,59 @@ def commit():
     subprocess.run('git commit -F ./utf8/COMMIT.MSG')  
     return Result.SUCCESS
 
-actions: dict[str, Callable[[], Result]] = {
-    'ForceQuit': lambda: sys.exit('\tExiting sync process'),
-    'DefaultConfig': apply_default_config,
-    'ApplyConfig': apply_config,
-    'ExtractATR': extract_atr,
-    'DeleteUTF8': delete_utf8,
-    'WriteUTF8': write_utf8,
-    'Commit': commit,
-    'Wait': wait
+def update_state(key, previous: Result = Result.SUCCESS) -> Result: 
+    if previous != Result.SUCCESS:
+        print(f'\nSkipping state up since step returned {previous}')
+        return previous
+    
+    stored_state = load_state()
+    current_state = get_current_state()
+
+    print(f'\tUpdating state[{key}]')
+    stored_state[key] = current_state[key]
+    save_state(stored_state)
+    return Result.SUCCESS
+
+def update(key: str, action: Callable[[], Result]) -> Callable[[], Result]:
+    return lambda: update_state(key, action())
+
+def fail(msg: str) -> Result:
+    print(msg)
+    return Result.FAILURE
+
+def success(msg: str) -> Result:
+    print(msg)
+    return Result.SUCCESS
+
+predicates: dict[str, Predicate] = {
+    'FatalError': lambda: get_config('error'),
+    'ForceQuit': lambda: get_config('exit_now'),
+    'DefaultConfig': lambda: stored_state.get('config') is None,
+    'ApplyConfig': lambda: stored_state['config'] and (not current_config or current_config != stored_state['config']),
+    'ExitOnIterations': lambda: not get_config('daemon') and get_config('iterations') >= get_config('max_iterations'),
+    'ExtractATR': lambda: (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii'],
+    'DeleteUTF8': lambda: (stored_state['atascii'] != current_state['atascii']),
+    'AutoCommit': lambda: get_config('auto_commit'),
+    'WriteUTF8': lambda: not current_state['utf8'],
+    'RunOnceExit': lambda: get_config('run_once'),
+    'ConditionalCommit': lambda: current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit'])
 }
 
-class Action(Enum):
-    DEFAULT_CONFIG = 'config', lambda: apply_default_config()
-    APPLY_CONFIG = 'config', lambda: apply_config()
-    EXTRACT_ATR = 'atr', lambda: extract_atr()
-    DELETE_UTF8 = 'atascii', lambda: clear_dir('./utf8')
-    WRITE_UTF8 = 'utf8', lambda: files_to_utf8('./atascii', './utf8')
-    COMMIT = 'commit', lambda: commit()
-    PUSH = 'commit' , lambda: subprocess.run('git push')
-    WAIT = None, lambda: wait()
-    EXIT = None, lambda: sys.exit("\tExiting sync process")
-    ERROR = None, lambda: sys.exit("\tError encountered. Exiting sync process")
-    
-    def __new__(cls, *args, **kwds):
-          value = len(cls.__members__) + 1
-          obj = object.__new__(cls)
-          obj._value_ = value
-          return obj
-    
-    def __init__(self, key, recon_action):
-          self.key = key
-          self.recon_action = recon_action
+actions: dict[str, Callable[[], Result]] = {
+    'FatalError': lambda: sys.exit('FATAL ERROR: ', get_config('error')),
+    'ForceQuit': lambda: sys.exit('\tExiting sync process'),
+    'DefaultConfig': update('config', apply_default_config),
+    'ApplyConfig': update('config', apply_config),
+    'ExitOnIterations': lambda: sys.exit('\tMax iterations reached. Exiting sync process'),
+    'ExtractATR': update('atr', extract_atr),
+    'DeleteUTF8': update('atascii', delete_utf8),
+    'WriteUTF8': update('utf8', write_utf8),
+    'PreCommit': lambda: success('PreCommit not yet implemented'),
+    'Commit': update('commit', commit),
+    'PostCommit': lambda: success('PostCommit not yet implemented'),
+    'RunOnceExit': lambda: sys.exit('\tRunOnce complete. Exiting sync process'),
+    'Wait': wait
+}
 
 def md5checksum(file):
     f = open(file,'rb')
@@ -215,102 +226,65 @@ def save_state(state):
     f.write(json.dumps(state, indent=4))
     f.close()
 
-def decide_action() -> Action | list[Action]: 
-    if get_config('exit_now'):
-        return Action.EXIT
-
-    global stored_state
-    global current_state
-    stored_state = load_state()
-    current_state = get_current_state()
-
-    if stored_state.get('config') is None:
-        print('\tDefaulting config')
-        return Action.DEFAULT_CONFIG
-
-    if stored_state['config'] and (not current_config or current_config != stored_state['config']):
-        return Action.APPLY_CONFIG
-
-    if not get_config('daemon') and iterations >= get_config('iterations'):
-        return Action.EXIT
-
-    if not current_state['atr']:
-        return Action.ERROR
-    
-    if (not stored_state['atr']) or (current_state['atr'][0] != stored_state['atr'][0]) or not current_state['atascii']:
-        return Action.EXTRACT_ATR
-
-    if (stored_state['atascii'] != current_state['atascii']):
-        return Action.DELETE_UTF8
-    
-    if not current_state['utf8']:
-        return [Action.WRITE_UTF8, Action.COMMIT] if get_config('auto_commit') else Action.WRITE_UTF8
-
-    if current_state.get('commit') and (not stored_state.get('commit') or stored_state['commit'] != current_state['commit']):
-        # Magic commit message that makes us push instead of commit
-        if current_state['commit']['msg'].strip(' \t\n\r') == 'PUSH':
-            return Action.PUSH
-        else:
-            return Action.COMMIT
-
-    return Action.WAIT
-
-def update_state(key):
-    stored_state = load_state()
-    current_state = get_current_state()
-
-    stored_state[key] = current_state[key]
-    save_state(stored_state)
-
 # Runs a single iteration of the reconciliation logic
 def recon_tick():
-    global iterations
-    decision = decide_action()
+    global stored_state
+    global current_state
 
-    if get_config('run_once') and decision == Action.WAIT:
-        print('Exiting immediately')
-        override_config['exit_now'] = True
-        return decision
+    stored_state = load_state()
+    current_state = get_current_state()
 
-    total_iterations = '?'
-    if current_config:
-        if get_config('daemon'):
-            total_iterations = '∞'
-        elif current_config['iterations']:
-            total_iterations = current_config['iterations']
+    max_iterations = '?'
 
-    sub_iteration = 0
-    is_list = type(decision) is list
-    print(f'IsList: {is_list}')
-    if is_list:
-        actions = decision
+    if get_config('run_once'):
+        max_iterations = ''
+    if get_config('daemon'):
+        max_iterations = '∞'
     else:
-        actions = [decision]
+        max_iterations = get_config('max_iterations')
 
-    while actions:
-        action = actions.pop(0)
-        print(f'({iterations}.{sub_iteration}/{total_iterations}) - Performing {action}... ')
-        if not action.recon_action is None:
-            action.recon_action()
-    
-        if not action.key is None:
-            update_state(decision.key)
-
-        print("...Done\n")
-        sub_iteration =+ 1
-
-    iterations += 1
-    
-    return decision
+    print(f'({get_config('iterations')}/{max_iterations})... ', end='')
+    tree.tick()
 
 def recon_loop():
     while True:
         try:
             recon_tick()
         except KeyboardInterrupt:
-            global iterations
-            iterations += 1
+            override_config['iterations'] += 1
             override_config['exit_now'] = True
+
+def createBehavior(item: str | dict) -> Behavior:
+    if isinstance(item, str):
+        action = actions.get(item)
+        if not action:
+            print(f'No action found for behavior {item}. Short circuiting')
+            predicate = NEVER
+        else:
+            predicate = predicates.get(item, ALWAYS)
+        return tree.add_leaf(item, action, predicate)
+    if isinstance(item, dict):
+        if item.get('ref'):
+            return tree.behaviors.get(item['ref'])
+        children = list(map(lambda c: createBehavior(c), item['children']))
+        name = item['name']
+        predicate = predicates.get(name, ALWAYS)
+        if item['type'] == 'Sequence':
+            return tree.add_sequence(name, children, predicate)
+        elif item['type'] == 'Selector':
+            return tree.add_selector(name, children, predicate)
+        else:
+            return f'Error: {type(item)} {item}'
+    else:
+        return f'Error: {type(item)} {item}'
+
+def build_tree():
+    f = open('tree.json')
+    treestr = json.loads(f.read())
+        
+    root = createBehavior(treestr)   
+
+    tree.set_root(root)     
 
 def init(clobber = False):
 
@@ -332,7 +306,7 @@ def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
 
     if not daemon is None:
         override_config['daemon'] = daemon
-
+    build_tree()
     recon_loop()
 
 if __name__ == '__main__':
