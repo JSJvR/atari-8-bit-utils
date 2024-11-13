@@ -1,5 +1,7 @@
+from __future__ import annotations
 import os
 import sys
+from typing import Callable
 
 # Initialize ATASCII to UTF-8 mapping
 
@@ -107,17 +109,37 @@ def to_utf8(in_filename='-', out_filename='-'):
     ifile.close()
 
 
-# Scans a directory and converts all files from ATASCII to UTF-8
+def apply_to_dirs(ipath: str, opath: str, applier: Callable[[str, str], None]):
+    # Switch to fully qualified paths
+    ipath = os.path.abspath(ipath)
+    opath = os.path.abspath(opath)
+
+    # print(f'{ipath} --> {opath}')
+    for root, dirs, files in os.walk(ipath):
+        outroot = root.replace(ipath, opath)
+        # print(f'\tDir {root} --> {outroot}')
+        for dirname in dirs:
+            dirpath = os.path.join(outroot, dirname)
+            if not os.path.exists(dirpath) and not dirname.startswith('.'):
+                # print(f'Creating {dirpath}')
+                os.mkdir(dirpath)
+        for filename in files:
+            if not filename.startswith('.'):
+                out_filename = os.path.join(outroot, filename)
+                in_filename = os.path.join(root, filename)
+                # print(f'\tFile: {in_filename} --> {out_filename}')
+                applier(in_filename, out_filename)
+
+
 def files_to_utf8(ipath, opath, clobber=False):
+    """
+    Recursively converts all files in directory ipath from ATASCII to UTF-8 
+    and writes the output to opath
+    """
     if clobber:
         clear_dir(opath)
 
-    with os.scandir(ipath) as it:
-        for entry in it:
-            if not entry.name.startswith('.') and entry.is_file():
-                out_filename = os.path.join(opath, entry.name)
-                print(f'Converting to UTF-8: {entry.path} --> {out_filename}')
-                to_utf8(entry.path, out_filename)
+    apply_to_dirs(ipath, opath, to_utf8)
 
 
 # Converts a single file from UTF-8 to ATASCII
@@ -145,23 +167,29 @@ def to_atascii(in_filename='-', out_filename='-'):
     ofile.close()
 
 
-def files_to_atascii(ipath, opath):
-    with os.scandir(ipath) as it:
-        for entry in it:
-            if not entry.name.startswith('.') and entry.is_file():
-                out_filename = os.path.join(opath, entry.name)
-                print(f'Converting to UTF-8: {entry.path} --> {out_filename}')
-                to_atascii(entry.path, out_filename)
+def files_to_atascii(ipath: str, opath: str, clobber: bool = False):
+    """
+    Recursively converts all files in directory ipath from UTF-8 to ATASCII
+    and writes the output to opath
+    """
+    if clobber:
+        clear_dir(opath)
+    apply_to_dirs(ipath, opath, to_atascii)
 
 
 def clear_dir(path):
+    """
+    Recursively deletes all files and directories in path,
+    excluding ones whose name starts with '.'
+    """
     print(f'Deleting all files in {path}')
-    dir = os.scandir(path)
-    with dir:
-        for entry in dir:
-            if not entry.name.startswith('.') and entry.is_file():
-                os.remove(entry.path)
-    dir.close()
+    for root, dirs, files in os.walk(path, topdown=False):
+        for filename in files:
+            if not filename.startswith('.'):
+                os.remove(os.path.join(root, filename))
+        for dirname in dirs:
+            if not dirname.startswith('.'):
+                os.rmdir(os.path.join(root, dirname))
 
 
 def dump_mappings():
