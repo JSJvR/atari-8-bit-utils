@@ -40,9 +40,9 @@ def convert(input: str, output: str, file_converter: Callable, dir_converter):
     itype = path_type(input)
     otype = path_type(output, True)
     if itype == PathType.ERROR:
-        raise typer.BadParameter(f'{input} is not a valid input path')
+        raise typer.BadParameter(f'"{input}" is not a valid input path', param_hint='[INPUT]')
     if otype == PathType.ERROR:
-        raise typer.BadParameter(f'{output} is not a valid output path')
+        raise typer.BadParameter(f'"{output}" is not a valid output path', param_hint='[OUTPUT]')
 
     logger.info(f'Input: {input}({itype}), Output: {output}({otype})')
     # If the input path is a file and the output path is a directory, use the same filename
@@ -50,22 +50,22 @@ def convert(input: str, output: str, file_converter: Callable, dir_converter):
     if itype == PathType.FILE:
         if otype == PathType.DIR:
             p = Path(input)
-            logger.info(f'Using filename {p.name} in output directory {output}')
+            logger.info(f'Using filename "{p.name}" in output directory "{output}"')
             output = os.path.join(output, p.name)
         file_converter(input, output)
     elif itype == PathType.STDIO:
         if otype == PathType.DIR:
-            raise typer.BadParameter(f'Invalid value for OUTPUT: {output}. When INPUT is STDIN, OUTPUT can\'t be a directory')
+            raise typer.BadParameter('When [INPUT] is STDIN, [OUTPUT] can\'t be a directory', param_hint='[OUTPUT]')
         else:
             file_converter(input, output)
     else:
         if otype != PathType.DIR:
-            raise typer.BadParameter(f'Invalid value for INPUT: {input}. When INPUT is as directory, OUTPUT must be a directory')
+            raise typer.BadParameter(f'When [INPUT] is as directory, [OUTPUT] must be a directory', param_hint='[OUTPUT]')
         else:
             dir_converter(input, output)
 
 
-@app.command(help="Converts a single file or all files in a directory from ATASCII to UTF-8")
+@app.command(help="Converts STDIN, a single file, or all files in a directory from ATASCII to UTF-8")
 def ata2utf(
     input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
@@ -73,15 +73,15 @@ def ata2utf(
     convert(input, output, to_utf8, files_to_utf8)
 
 
-@app.command(help="Converts a single file or all files in a directory from UTF-8 to ATASCII")
+@app.command(help="Converts STDIN, a single file, all files in a directory from UTF-8 to ATASCII")
 def utf2ata(
-    input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN', )] = '-',
+    input: Annotated[str, typer.Argument(help='Input file or directory. Use "-" for STDIN')] = '-',
     output: Annotated[str, typer.Argument(help='Output file or directory. Use "-" for STDOUT')] = '-'
 ):
     convert(input, output, to_atascii, files_to_atascii)
 
 
-@app.command(help='Keeps an ATR image and git repo in sync')
+@app.command(help='Keeps an ATR image and and a local directory in sync. Optionally manages a git repo in the directory')
 def atr2git(
     reset_config: Annotated[bool, typer.Option(help='Overwrite existing state.json with default values')] = False,
     once: Annotated[bool, typer.Option(help='Synchronize only once and exit when there is nothing to do.')] = None,

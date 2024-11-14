@@ -17,27 +17,32 @@ from .tree import atr_tree
 state_file = './state.json'
 
 # Global variables
-current_config = None
 tree = BehaviorTree()
+# The global state & config variables are not kept up to date automatically, so they
+# should be refreshed before use.
+current_config: dict | None = None
+stored_state: dict | None = None
+current_state: dict | None = None
 
-# Config object holding any setting that were overridden for the current run
-# These config values will be used in the program logic, but will not be persisted
-# to state.json
-override_config = {
+# Config object holding two categories of information:
+# 1. Any settings that were overridden for the current run. These config values will
+#    be used in the program logic, but will not be persisted.
+# 2. Global state variables that we use from multiple places
+current_context = {
     'exit_now': False,
     'iterations': 0
 }
 
-stored_state: dict | None = None
-current_state: dict | None = None
-
 default_config = {
-    'delay': 5,             # Time delay in seconds between executions of the recon loop
+    'delay': 30,             # Time delay in seconds between executions of the recon loop
     # The number of full reconciliations to do, i.e. we're only counting
+    # iterations where we there is no action to take. A value of 1 will cause us to run
+    # until we reach a consistent state for the first time, which is equivalent to the
+    # --run-once CLI parameter. If the value is 0, we run forever, which is equivalent
+    # to the --daemon parameter.
     'max_iterations': 0,
-    # iterations where we end up waiting
 
-    # Flag indicating whether we should commit every time a files changes
+    # Flag indicating whether we should commit every time one or more files change.
     'auto_commit': False
 }
 
@@ -48,7 +53,7 @@ def apply_default_config():
     current_config = default_config
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t'))
     print('\tWith overrides:')
-    print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
+    print(textwrap.indent(json.dumps(current_context, indent=4), '\t  '))
     return Result.SUCCESS
 
 
@@ -61,12 +66,12 @@ def get_config(key: str):
     '''
     config_val = None
 
-    override = override_config.get(key)
+    override = current_context.get(key)
     # print(f'\t\tOverride value: {override}')
 
     if not current_config:
         config_val = None
-    elif not override_config.get(key) is None:
+    elif not current_context.get(key) is None:
         config_val = override
     else:
         config_val = current_config.get(key)
@@ -90,7 +95,7 @@ def apply_config():
     print('Using config:')
     print(textwrap.indent(json.dumps(current_config, indent=4), '\t  '))
     print('\tWith overrides:')
-    print(textwrap.indent(json.dumps(override_config, indent=4), '\t  '))
+    print(textwrap.indent(json.dumps(current_context, indent=4), '\t  '))
     return Result.SUCCESS
 
 
@@ -154,10 +159,10 @@ def success(msg: str) -> Result:
 
 
 def iterate():
-    override_config['iterations'] += 1
+    current_context['iterations'] += 1
 
     if get_config('max_iterations') > 0 and get_config('iterations') >= get_config('max_iterations'):
-        override_config['exit_now'] = True
+        current_context['exit_now'] = True
         return Result.SUCCESS
 
     return Result.FAILURE
@@ -264,7 +269,7 @@ def recon_tick():
     elif max_iterations <= 0:
         max_iterations = '∞'
 
-    iterations = override_config['iterations']
+    iterations = current_context['iterations']
     print(f'({iterations}/{max_iterations}) - ', end='')
     tree.tick()
 
@@ -274,8 +279,8 @@ def recon_loop():
         try:
             recon_tick()
         except KeyboardInterrupt:
-            override_config['iterations'] += 1
-            override_config['exit_now'] = True
+            current_context['iterations'] += 1
+            current_context['exit_now'] = True
 
 
 def createBehavior(item: str | dict) -> Behavior:
@@ -323,9 +328,9 @@ def sync_main(reset: bool = False, once: bool = None, daemon: bool = None):
     init(reset)
 
     if once:
-        override_config['max_iterations'] = 1
+        current_context['max_iterations'] = 1
     elif daemon:
-        override_config['max_iterations'] = 0
+        current_context['max_iterations'] = 0
 
     build_tree()
     recon_loop()
