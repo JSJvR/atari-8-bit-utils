@@ -1,0 +1,9 @@
+Tests for potentially problematic characters: those with on than one UTF-8 mapping
+
+These pairs translate to the same ATASCII character
+|│ - 0x7c
+⎹🮇 - 0x02
+🮂⎺ - 0x0d
+⎽▂ - 0x0e
+•● - 0x14
+▎⎸ - 0x16

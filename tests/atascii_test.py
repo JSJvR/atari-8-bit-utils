@@ -6,7 +6,6 @@ from atari_8_bit_utils.atascii import to_utf8, to_atascii, files_to_utf8, files_
 
 # Tests for ATASCII <-> UTF-8 conversion code
 
-
 class TestAtasciiConversions(unittest.TestCase):
 
     def setUp(self):
@@ -38,7 +37,7 @@ class TestAtasciiConversions(unittest.TestCase):
 
         to_atascii(in_utf8, out_atascii)
         to_utf8(out_atascii, out_utf8)
-        self.assertTrue(filecmp.cmp(in_utf8, out_utf8, shallow=False))
+        self.assertFilesMatch(out_utf8, out_utf8)
 
     def __init__(self, methodName="runTest"):
         data_path = 'testdata/'
@@ -48,6 +47,17 @@ class TestAtasciiConversions(unittest.TestCase):
 
         super().__init__(methodName)
 
+    # Compare files line by line so that we can gracefully handle different 
+    # line endings
+    def assertFilesMatch(self, file1, file2):
+        l1 = l2 = True
+        #self.fail(f'{file1}, {file2}')
+        with open(file1, 'r', encoding='utf-8') as f1, open(file2, 'r', encoding='utf-8') as f2:
+            while l1 and l2:
+                l1 = f1.readline()
+                l2 = f2.readline()
+                if l1 != l2:
+                    self.fail(f'Lines don\'t match:\n\t{l1}\n\t{l2}')
 
 if __name__ == '__main__':
     unittest.main()

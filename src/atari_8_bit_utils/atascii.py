@@ -8,7 +8,7 @@ from typing import Callable
 translate = {
     0x00: '\u2665',
     0x01: '\u251c',
-    0x02: '\U0001fb87',
+    0x02: '\u23B9',
     0x03: '\u2518',
     0x04: '\u2524',
     0x05: '\u2510',
@@ -61,6 +61,15 @@ translate = {
     0xa0: '\u2588',
 }
 
+rev_extra = {
+    '|' : 0x7c,
+    '\U0001fb87': 0x02,
+    '\u23ba': 0x0d,
+    '\u23bd': 0x0e,
+    '\u2022': 0x14,
+    '\u23b8': 0x16,
+}
+
 # Fill in the characters where the UTF-8 and ATASCII representations are the same
 for i in range(0x0, 0x80):
     val = translate.get(i)
@@ -78,6 +87,9 @@ for i in range(0x80, 0x100):
 
 # Initialize UTF-8 to ATASCII mapping
 inv_translate = {v: k for k, v in translate.items()}
+
+# Get some extra reverse mappings for characters with more than one representation
+inv_translate = rev_extra | inv_translate
 
 # Make the '`' escape work for any reverse character
 for k, v in translate.items():
