@@ -22,9 +22,9 @@ class TestAtasciiConversions(unittest.TestCase):
         files_to_atascii(self.utf8_path, self.out_path)
 
     def test_atascii_roundtrip(self):
-        in_atascii = self.atascii_path + 'TEST.TXT'
-        out_utf8 = self.out_path + 'TEST-UTF8.TXT'
-        out_atascii = self.out_path + 'TEST-ATA.TXT'
+        in_atascii = self.atascii_path + 'COMPLETE.TXT'
+        out_utf8 = self.out_path + 'COMPLETE-UTF8.TXT'
+        out_atascii = self.out_path + 'COMPLETE-ATA.TXT'
 
         to_utf8(in_atascii, out_utf8)
         to_atascii(out_utf8, out_atascii)

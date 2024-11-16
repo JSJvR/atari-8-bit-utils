@@ -91,10 +91,11 @@ inv_translate = {v: k for k, v in translate.items()}
 # Get some extra reverse mappings for characters with more than one representation
 inv_translate = rev_extra | inv_translate
 
+temp = inv_translate.copy()
 # Make the '`' escape work for any reverse character
-for k, v in translate.items():
-    if (not v.startswith('`')) and (inv_translate.get('`' + v) is None):
-        inv_translate['`' + v] = k ^ 0x80
+for k, v in temp.items():
+    if (not k.startswith('`')) and (inv_translate.get('`' + k) is None):
+        inv_translate['`' + k] = v ^ 0x80
 
 
 # Converts a single file from ATASCII to UTF-8

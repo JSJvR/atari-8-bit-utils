@@ -7,3 +7,11 @@ These pairs translate to the same ATASCII character
 ⎽▂ - 0x0e
 •● - 0x14
 ▎⎸ - 0x16
+
+They need to work with the reverse video escape as well
+`|`│ - 0xfc
+`⎹`🮇 - 0x82
+`🮂`⎺ - 0x8d
+`⎽`▂ - 0x8e
+`•`● - 0x94
+`▎`⎸ - 0x96
